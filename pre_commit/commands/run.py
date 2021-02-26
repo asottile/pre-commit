@@ -149,10 +149,12 @@ def _run_single_hook(
         diff_before: bytes,
         verbose: bool,
         use_color: bool,
+        quiet: bool,
 ) -> Tuple[bool, bytes]:
     filenames = classifier.filenames_for_hook(hook)
 
     if hook.id in skips or hook.alias in skips:
+        # The user specified to skip this, ignore quiet mode
         output.write(
             _full_msg(
                 start=hook.name,
@@ -168,16 +170,17 @@ def _run_single_hook(
         files_modified = False
         out = b''
     elif not filenames and not hook.always_run:
-        output.write(
-            _full_msg(
-                start=hook.name,
-                postfix=NO_FILES,
-                end_msg=SKIPPED,
-                end_color=color.TURQUOISE,
-                use_color=use_color,
-                cols=cols,
-            ),
-        )
+        if not quiet:
+            output.write(
+                _full_msg(
+                    start=hook.name,
+                    postfix=NO_FILES,
+                    end_msg=SKIPPED,
+                    end_color=color.TURQUOISE,
+                    use_color=use_color,
+                    cols=cols,
+                ),
+            )
         duration = None
         retcode = 0
         diff_after = diff_before
@@ -286,10 +289,17 @@ def _run_hooks(
         current_retval, prior_diff = _run_single_hook(
             classifier, hook, skips, cols, prior_diff,
             verbose=args.verbose, use_color=args.color,
+            quiet=False if args.verbose else args.quiet,
         )
         retval |= current_retval
         if retval and config['fail_fast']:
             break
+    if (args.quiet or args.verbose) and not retval:
+        # Do not want success with --quiet to be absolutely silent
+        # (would not know if any checks have been made at all)
+        output.write_line(
+            f'All {len(hooks)} pre-commit hook(s) passed or skipped',
+        )
     if retval and args.show_diff_on_failure and prior_diff:
         if args.all_files:
             output.write_line(

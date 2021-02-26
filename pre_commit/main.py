@@ -79,6 +79,10 @@ def _add_hook_type_option(parser: argparse.ArgumentParser) -> None:
 def _add_run_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('hook', nargs='?', help='A single hook-id to run')
     parser.add_argument('--verbose', '-v', action='store_true', default=False)
+    parser.add_argument(
+        '--quiet', '-q', action='store_true', default=False,
+        help='Enable quiet mode (verbose mode overrides this).',
+    )
     mutex_group = parser.add_mutually_exclusive_group(required=False)
     mutex_group.add_argument(
         '--all-files', '-a', action='store_true', default=False,
@@ -206,6 +210,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     hook_impl_parser.add_argument(
         '--skip-on-missing-config', action='store_true',
     )
+    hook_impl_parser.add_argument(
+        '--quiet', '-q', action='store_true', default=False,
+        help='Enable quiet mode (in post-commit, pre-merge-commit, '
+        'pre-commit hooks).',
+    )
     hook_impl_parser.add_argument(dest='rest', nargs=argparse.REMAINDER)
 
     gc_parser = subparsers.add_parser('gc', help='Clean unused cached repos.')
@@ -249,6 +258,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         ),
     )
     _add_hook_type_option(install_parser)
+    install_parser.add_argument(
+        '--quiet', '-q', action='store_true', default=False,
+        help='Write hook script using quiet mode.',
+    )
     install_parser.add_argument(
         '--allow-missing-config', action='store_true', default=False,
         help=(
@@ -354,6 +367,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 hook_type=args.hook_type,
                 hook_dir=args.hook_dir,
                 skip_on_missing_config=args.skip_on_missing_config,
+                quiet=args.quiet,
                 args=args.rest[1:],
             )
         elif args.command == 'install':
@@ -362,6 +376,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 hook_types=args.hook_types,
                 overwrite=args.overwrite,
                 hooks=args.install_hooks,
+                quiet=args.quiet,
                 skip_on_missing_config=args.allow_missing_config,
             )
         elif args.command == 'init-templatedir':
